@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace App\Service\Order;
 
-use App\Exception\ReorderException;
 use Sylius\Component\Core\Model\OrderItemInterface;
 use Sylius\Component\Core\Repository\OrderRepositoryInterface;
 use Sylius\Component\Order\Model\OrderInterface;
@@ -17,13 +16,13 @@ use Sylius\Component\Resource\Factory\FactoryInterface;
 final readonly class OrderItemReorder implements OrderItemReorderInterface
 {
     public function __construct(
-        private CartContextInterface               $cartContext,
-        private OrderItemQuantityModifierInterface $quantityModifier,
-        private OrderModifierInterface             $orderModifier,
-        private OrderProcessorInterface            $orderProcessor,
-        private OrderItemReorderValidatorInterface $orderItemReorderValidator,
-        private FactoryInterface                   $orderItemFactory,
-        private OrderRepositoryInterface           $orderRepository
+        private CartContextInterface                        $cartContext,
+        private OrderItemQuantityModifierInterface          $quantityModifier,
+        private OrderModifierInterface                      $orderModifier,
+        private OrderProcessorInterface                     $orderProcessor,
+        private OrderItemReorderEligibilityCheckerInterface $orderItemReorderValidator,
+        private FactoryInterface                            $orderItemFactory,
+        private OrderRepositoryInterface                    $orderRepository
     )
     {
     }
@@ -33,16 +32,9 @@ final readonly class OrderItemReorder implements OrderItemReorderInterface
         $this->orderItemReorderValidator->validate($orderItem);
 
         $variant = $orderItem->getVariant();
-        if (null === $variant) {
-            throw new ReorderException('Product variant not available.');
-        }
-
         $quantity = $orderItem->getQuantity();
-        if ($quantity <= 0) {
-            throw new ReorderException('Quantity must be greater than 0.');
-        }
-
         $order = $this->cartContext->getCart();
+
         $existingItem = $this->findItemInOrderByVariant($order, $variant);
 
         if ($existingItem) {
